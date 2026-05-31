@@ -1,5 +1,6 @@
 # Tokenization Basics
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/wakeuprosie/llm-fundamentals-portfolio/blob/main/02_basic_tokenizer/tokenization_comparisons.ipynb)
 Tokens are the “atoms” of LLMs and frequently a source of the quality issues seen in LLM behavior. Tokens are essentially representations of chunks of text data. LLMs process information on the level of tokens instead of raw text. It’s like the LLM’s ‘alphabet’.
 
 ## Why tokens? 
