@@ -1,2 +1,2 @@
-# llm-tpgm-portfolio-
-A portfolio of my LLM fundamentals artifacts.
+# llm-fundamentals-portfolio-
+A portfolio demonstrating basic knowledge of LLM fundamentals.
