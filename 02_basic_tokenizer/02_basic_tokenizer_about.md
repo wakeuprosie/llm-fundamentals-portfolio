@@ -1,4 +1,4 @@
-# 02_tokenization_lab/
+# Tokenization Basics
 
 Tokens are the “atoms” of LLMs and frequently a source of the quality issues seen in LLM behavior. Tokens are essentially representations of chunks of text data. LLMs process information on the level of tokens instead of raw text. It’s like the LLM’s ‘alphabet’.
 
