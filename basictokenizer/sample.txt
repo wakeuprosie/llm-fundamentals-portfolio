@@ -1,0 +1,6 @@
+The quick brown fox jumps over the lazy dog.
+The quick brown fox jumps over the lazy dog.
+BPE (Byte Pair Encoding) is a simple data compression algorithm.
+It replaces the most common pair of consecutive bytes in a data with a single, unused byte.
+In NLP, it is used as a subword tokenization method.
+This is a sample text file to test the basictokenizer implementation.
