@@ -1,6 +1,5 @@
 # Tokenization Basics
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/wakeuprosie/llm-fundamentals-portfolio/blob/main/02_basic_tokenizer/tokenization_comparisons.ipynb)
 Tokens are the “atoms” of LLMs and frequently a source of the quality issues seen in LLM behavior. Tokens are essentially representations of chunks of text data. LLMs process information on the level of tokens instead of raw text. It’s like the LLM’s ‘alphabet’.
 
 ## Why tokens? 
@@ -15,6 +14,9 @@ In a nutshell, you 'chunk' up the text data according to common patterns. Then y
 You can use this website Andrej Karpathy references in his lecture visualize how Chat GPT-4 tokenizes text in real-time: https://tiktokenizer.vercel.app/?model=gpt-4.
 
 Having a larger token vocab does not necessarily mean better. Chat GPT-5 and Gemini Pro 3.1 have vocab sizes in the range of 200K-250K, while older versions of these models had vocabularies in the 100K range. The jump in size was primarily to improve quality of performance with non-Latin languages and coding use cases - which generally require more tokens per context.
+
+## Differences in tokenization based on input type
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/wakeuprosie/llm-fundamentals-portfolio/blob/main/02_basic_tokenizer/tokenization_comparisons.ipynb)
 
 ## A basic tokenizer implementation
 See basictokenizer.py for a working implementation of basic tokenizer in python.
