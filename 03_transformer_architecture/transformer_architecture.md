@@ -33,7 +33,7 @@ Step-by-step of what happens in each token sequence: I'm going to follow the siz
 * Get the embedding vector for T from the static embedding table. Let's assume 1-D array size 768. The embedding vector at this point has no context baked in.
 * Apply normalization to the vector - you do this because the embedding vector can vary wildly in size, and you want to reset the scale to keep the signal strength stable through each layer of calculations.
 * Dot product this embedding vector with Wq and Wk matrixes to get Q and K vectors. These vectors determine what information is important for each token. Q represents what information this token should pay attention to and K represents what information this token contains. Each vector is size 1-D. Let's assume 1-D array size 64 - this is a design choice.
-* Dot product the Q and K vectors to calculate V vector. V represents what information this token passes along to other tokens.
+* Dot product the Q and K vectors to calculate raw scores, divide by the square root of d_k (64), and then pass through softmax. The softmax ensures the scores are between 0 and 1 and sum to 1. This step essentially tells you how much attention to pay to each token in the sequence for the current token.
 * The attention layer has multiple heads. We just described going though 1 head. You would go through all heads in the same manner and end up with multiple V vector outputs. 
 * Concatenate the outputs into one final 1-D vector. Remember each head vector 1-D size 64. In GPT-2, there's 12 heads, so when you concatenate them you end up with a 1-D array of size 768. (You're back to the original embedding vector shape!)
 * Apply normalization again to this vector.
