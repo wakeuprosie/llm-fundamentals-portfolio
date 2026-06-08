@@ -1,5 +1,5 @@
 # Transformer Architecture
-The transformer step is where the query understanding and output generation happens in the LLM model. The key components of a transformer are attention, the feed-forward network (FFN), also known as the multi-layer perceptron (MLP), and positional encoding. Learning about transformers was where I learned to appreciate the sheer amount of calculations happening in LLMs. This file outlines the basics of transformer architecture.
+The transformer step in an LLM is where the query understanding and output generation happens. The key components of a transformer are attention, the feed-forward network (FFN) (also commonly known as the multi-layer perceptron (MLP)), and positional encoding. Learning about transformers is where I started to appreciate the sheer amount of calculations happening for every query to an LLM. Outlined here are the basics of transformer architecture for a decoder-only transformer, which is the basis for most LLMs like GPT-series and Claude.
 
 <img src="decoder_transformer_visual_diagram.svg" alt="Decoder Transformer Visual Diagram" width="800">
 
@@ -13,13 +13,13 @@ With the token's positional info encoded in its vector, you move onto to the att
 ## Attention Layer
 The attention layer's purpose is to incorporate context of surrounding tokens into each token. An analogy used is comparing the meaning of the word 'model' in the phrase 'an LLM model' vs 'a fashion model'. In different contexts, 'model' means quite different things. Attention layer incorporates this kind of relational context.
 
-B,T,C are the key parameters of the attention layer. These parameters determine how the model processes your input query. 
+**B,T,C** are the key parameters of the attention layer. These parameters determine how the model processes your input query. 
 B represents batches, how many batches of token sequences you'll process in parallel.
 T represents token sequence size - how long is each token sequence you'll analyze.
 C represents channels - each channel represents some info about the token.
 Essentially they determine the size of the tensor input that flows to the attention layer. You break up the input query into token sequences. So B and T values are dynamic based on your input query at runtime. T is the hard constraint - which has a max_sequence_length that you set at the positional encoding step prior.
 
-Second key concept in the attention layer is that each layer contains multiple ‘heads’. Each 'head' contains weights that look for certain features of surrounding token relationships. 
+Second key concept in the attention layer is that each layer contains multiple **‘heads’**. Each 'head' contains weights that look for certain features of surrounding token relationships. 
 * Early attention layers tend to address low level patterns like syntax, word order, and punctuation.
 * Mid layers are more about semantic relationships: subjects to objects, conference (“he” means “Michael”).
 * Late layers are more abstract and about factual associations or reasoning.
@@ -28,16 +28,16 @@ Second key concept in the attention layer is that each layer contains multiple �
     * Second pass: understand who is doing what
     * Third pass: understand the deeper meaning and implications
 
-Step-by-step of what happens in each token sequence: I'm going to follow the sizes used in GPT-2 to help you track how the vectors flow through each step. 
+**Step-by-step of what happens in each token sequence: I'm going to follow the sizes used in GPT-2 to help you track how the vectors flow through each step.** 
 
-* Get the embedding vector for T from the static embedding table. Let's assume 1-D array size 768. The embedding vector at this point has no context baked in.
-* Apply normalization to the vector - you do this because the embedding vector can vary wildly in size, and you want to reset the scale to keep the signal strength stable through each layer of calculations.
-* Dot product this embedding vector with Wq and Wk matrixes to get Q and K vectors. These vectors determine what information is important for each token. Q represents what information this token should pay attention to and K represents what information this token contains. Each vector is size 1-D. Let's assume 1-D array size 64 - this is a design choice.
-* Dot product the Q and K vectors to calculate raw scores, divide by the square root of d_k (64), and then pass through softmax. The softmax ensures the scores are between 0 and 1 and sum to 1. This step essentially tells you how much attention to pay to each token in the sequence for the current token.
-* Do a matrix multiplication of the output vector with the V vector, and add the output to the embedding vector.
-* The attention layer has multiple heads. We just described going though 1 head. You would go through all heads in the same manner and end up with multiple V vector outputs. 
-* Concatenate the outputs into one final 1-D vector. Remember each head vector 1-D size 64. In GPT-2, there's 12 heads, so when you concatenate them you end up with a 1-D array of size 768. (You're back to the original embedding vector shape!)
-* Apply normalization again to this vector.
+* Get the **embedding vector** for every token in each sequence of length T from the static embedding table. In the example of GPT-2, each token's embedding vector is size 1 x 768. Remember the embedding vector at this point has no context baked in.
+* Apply **normalization** to the vector - you do this because the embedding vector can vary wildly in size as you go through layers of calculations in the transformer, so you want to reset the scale to keep the signal strength stable through each layer.
+* Dot product the embedding vector for each token in a sequence with **Wq** and **Wk** matrixes to get each token's **Q** and **K** vectors - in GPT-2, each vector is size 1 x 64. The Wq and Wk vectors are learned and help determine what information is important for each token. Q represents what information each token should pay attention to and K represents what information each token contains.
+* Then, each Q and K vector is passed through the **attention heads** to calculate attention scores. In each head, you dot product Q of one token with the K vectors of itself and every prior token's K. (Attention can have multiple heads, and each **head** "asks" different questions to understand how well the query (Q) and key (K) of each token pair matches)
+* Each score vector is run through some formatting math, and then **softmax** to get a final **scores matrix**. The softmax ensures the scores all sum to 1, and are in the range 0 to 1. So at this point, each token has a score for each other token including itself that represents: "Which tokens in the sequence should I focus on to understand this token best?". 
+* Dot product the scores matrix with the **V vectors** of every prior token, and including itself, and get a single output for each token. Then sum up all outputs into a single score for each token in the sequence. This tells you how much of each token's V should we absorb into the current token for the current head.
+* Do this for all heads, then **concatenate** the outputs into one final 1-D vector. Remember each head vector 1-D size 64. In GPT-2, there's 12 heads, so when you concatenate them you end up with a 1-D array of size 768. (You're back to the original embedding vector shape!)
+* Apply **normalization** again to this vector.
 * Now you have a new embedding vector with context baked in, this can now flow through the MLP/FFN layer.
 
 Briefly on the size of Q and K, we mentioned this is a design choice. You typically decide C, (for B,T,C), then you pick the number of heads, and then with C and D you get the Q and K size. In our example for GPT-2, C = 768, heads = 12, so Q/K = 768 channels /12 heads = 64.
