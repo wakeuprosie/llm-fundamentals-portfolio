@@ -8,7 +8,7 @@ In the transformer framework you have an **embedding dictionary** which is like 
 
 These embeddings capture semantics, but not token position, so you need to add in **positional encoding**. The position of a token in a sequence matters for its meaning. For example, in "I can't wait to see the dog", the word 'dog' at the end of the sentence is the main subject of the sentence. If we swapped the position of 'I' and 'dog', the entire meaning of the sentence would change completely.
 
-Positional information is stored in a weight matrix called P or **positional encoding matrix**. P is initialized randomly and updated through backpropagation. For each token in the input query, you look up its corresponding P vector and add it to the token's embedding vector. For context, Claude's Sonnet 4.6 supports a 500K context window in paid chat plans on claude.ai while Claude Code supports 1M.
+Positional information is stored in a weight matrix called P or **positional encoding matrix**. P is initialized randomly and updated through backpropagation. For each token in the input query, you look up its corresponding P vector and add it to the token's embedding vector.
 
 With the token's positional info encoded in its vector, you move on to the attention layer. 
 
