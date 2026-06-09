@@ -10,39 +10,49 @@ These embeddings capture semantics, but not token position, so you need to add i
 
 Positional information is stored in a weight matrix called P or **positional encoding matrix**. P is initialized randomly and updated through backpropagation. For each token in the input query, you look up its corresponding P vector and add it to the token's embedding vector.
 
-With the token's positional info encoded in its vector, you move on to the attention layer. 
+In GPT-2, shape of P = [1024, 768]. This means GPT-2 can support up to 1024 tokens in its input context window. In comparison, Claude 4.6 supports 500K tokens in paid chat plans on claude.ai while Claude Code supports 1M.
+
+With each token's positional info encoded in their respective vectors, you move on to the attention layer. 
 
 ## Attention Layer
-The attention layer's purpose is to incorporate context of surrounding tokens into each token. A common analogy used is comparing the meaning of the word 'model' in the phrase 'an LLM model' vs 'a fashion model'. In different contexts, the word 'model' means different things. The attention step incorporates this type of relational context into each token.
+The attention layer's purpose is to incorporate the context of surrounding tokens into each token. Why? In different contexts, each token can mean different things. Take for example, the word 'model' in the phrase 'an LLM model' vs 'a fashion model'. In different contexts, the word 'model' has different meanings. The attention layer incorporates this type of relational context into each token.
 
-**B,T,C** are the key parameters of the attention layer. These parameters determine how the model processes your input query. Essentially, the query enters the attention layer as a tensor of shape (B,T,C).
+There are **multiple attention layers** in a transformer. In each layer you build more contextual understanding than the one before it. In the example of GPT-2, there are 12 attention layers.
+* Early attention layers tend to address low level patterns like syntax, word order, and punctuation.
+* Mid layers are more about semantic relationships: assemble phrases and begin linking context acrosss longer distances
+* Late layers are more abstract and about higher level semantics, logic, and intent. (Ex. At this point, the token 'apple' means more than fruit, it also implies a tech company, a pie recipe, etc.)
+
+Second, each attention layer contains **multiple ‘heads’**. Each head contains weights that look for different types of relationships between tokens.
+* For ex in the sequence "The cat sat" (let's assume each word is a token for ease of understanding) head A may focus on syntatic grammar relationships like linking "The" to "cat" in the sequence, head B focuses on resolving pronouns (does "it" refer to "cat"?), and head C may pay attention to punctuations or end-of-sentence tokens to understand structural flow. 
+
+Third, **B,T,C** are the key parameters of the attention layer. These parameters determine how the model processes your input query. Essentially, the query enters the attention layer as a tensor of shape (B,T,C).
 * B represents batches - how many token sequences you'll process in parallel.
 * T represents token sequence size - how long is each sequence you'll analyze.
 * C represents channels - each channel represents some info about the token.
 Here, B and T values are dynamic based on your input query. However, T is the hard constraint with a max_sequence_length, which you set at the positional encoding step prior.
 
-The second key point is that each attention layer contains multiple **‘heads’**. Each head contains weights that look for certain features of surrounding token relationships. 
-* Early attention layers tend to address low level patterns like syntax, word order, and punctuation.
-* Mid layers are more about semantic relationships: subjects to objects, conference (“he” means “Michael”).
-* Late layers are more abstract and about factual associations or reasoning.
+Now, let's go through the step-by-step of the attention layer calculations and inputs/outputs to better understand what's happening. I'll add examples of each step in the context of GPT-2 small, to help track the shapes and calculations.
 
-Lastly, there are **multiple attention layers**. In each layer you build more contextual understanding than the one before it. In the example of GPT-2, there are 12 attention layers. So you repeat this process of attention and normalization 12 times.
+**Step-by-Step of Attention:**
 
-**A step-by-step of attention:**
-I'm going to discuss the tensor shapes and sizes in the context of GPT-2 to help you track what's happening in each step.
-
-* First, you have your B,T,C input shape established. Then for every token in each T, you look up its **embedding vector**, E, from the static embedding table. Remember, at this point the vector has no context baked in.
-    * In the example of GPT-2, the input tensor shape is [B, T, 768] and each embedding vector is size 1 x 768.
-* Apply **normalization** to E. You do this because the embedding vector can vary wildly in size as you go through the transformer layers, so you want to reset the scale to keep the signal strength stable through each layer.
-* Matrix multiply E for each token in the T sequence with **Wq**, **Wk**, and **Wv** matrixes to get each token's **Q**, **K**, and **V** vectors. All three matrixes are learned through backpropagation and help determine what information is important for each token. Q represents what information each token should pay attention to, K represents what information each token contains, and V contains what info to pass along. Each vector is then partitioned into h separate heads and downsized (to dhead size).
-    * In GPT-2, Wq, Wk, and Wv are size 768 x 768. Each Q, K, and V vector is size 1 x 768. After partition, each head vector is downsized to 1 x 64.
-* In each head, you dot product Q and K to calculate the **attention pattern**. Then you mask out the upper triangle of the resulting matrix - this ensures you only attend to preceding tokens. The output is a matrix of floating point scores that represent how closely related each token pair in the sequence is.
-    * In GPT-2, when you dot product Q and K the output is one floating point value. For the full sequence, you will have a T x T shape of attention scores in the attention pattern.
-* Each score in the attention map is scaled down by dividing by the square root of the dimension size, and then you apply **softmax** to get your final **scores matrix** - this is still a T x T shape. The softmax ensures the scores of each row sum to 1, and are in the range 0 to 1. Remember, each row represents a single token and the attention it should pay to all tokens that came before it.
-* Then, matrix multiply the scores matrix with the **V vectors** of each token you're attending to, this gives you a vector of weighted changes to apply to the tokens doing the attending. You do this for all heads, then **concatenate** the outputs into one final vector. 
-        * In GPT-2, each head vector is size 64. Since there's 12 heads, when you concatenate them you end up with a 1-D array of size 768. (You're back to the original embedding vector shape!)
-* Pass the output vector through one final layer where you multiply by **Wo**, the **Output Projection Layer**. This final matrix multiply serves to "mix" the data processed by each head together.
-* Finally, this output vector is then added to the original embedding vector. 
+* First, you have your B,T,C input shape established. Then for every token in each T, you look up its **embedding vector**, **E**, from the static embedding table. Remember, at this point the vector has no context baked in.
+    * In the example of GPT-2 small, the input tensor shape is [B, T, 768] where T <= 1024 and each embedding vector is size 1 x 768. Let's assume the input tensor is (8, 1024, 768).
+* Apply **normalization** to all Es. You do this because the embedding vector can vary wildly in size as you go through the transformer layers, so you want to reset the scale to keep the signal strength stable through each layer.
+* For each token in T, matrix multiply E with **Wq**, **Wk**, and **Wv** matrixes to get each token's **Q**, **K**, and **V** vectors. All three W matrixes are learned through backpropagation and help determine what information is important to each token. Q represents what information each token should pay attention to, K represents what information each token contains, and V contains what info to pass along. Each vector is then partitioned into **h** separate heads and downsized (to dhead size) for the next step.
+    * Each head has its own set of learned Wq, Wk, Wv matrixes which are weighted and initialized differently during training.
+    * In GPT-2, Wq, Wk, Wv are size 768 x 768. Each Q, K, and V vector is size 1 x 768. All tokens in a sequence are processed in parallel, so the Q, K , V vectors are actually all concatenated in one larger tensor of shape T x 768. So the concatenated vectors of Q, K, V each are size (8, 1024, 768). After partition, each head vector is reshaped into a 64 x 1 vector. Size 64 comes from total dimension / number of heads (768 / 12). The resulting Q, K, V shape is (8, 1024, 12, 64).
+    * Why partition? To allow parallel computing - you reshape into smaller vectors that can process in parallel, and each learns different aspects of token relationships, all at the same time. If each head processed the full 768 dimensions, you would 12x the attention layer size and memory usage.
+* In each head, you **dot product** Q and K matrices to calculate the **attention pattern**. The output is a T x T matrix of floating point numbers that each represent a score of how closely related each token pair in the sequence is (T = token sequence as a reminder!). Afterwards, you mask out the upper triangle of the resulting matrix - this ensures you only attend to preceding tokens, you don't care about attending to tokens that came after in this case.
+    * Continuing with the GPT-2 example, the resulting attention pattern shape is (8, 12, 1024, 1024). 8 batches of 12 heads, each head with a T x T attention matrix.
+* Each score in the attention matrix is scaled down by dividing by the square root of the dimension size, and then you apply **softmax** to get your final **scores matrix**. The softmax step ensures the scores of each row sum to 1, and are in the range 0 to 1. Remember, each row represents a single token and the attention it should pay to all tokens that came before it.
+* Then, matrix multiply the scores matrix with the **V vectors** of each token you're attending to, this gives you a vector of weighted changes to apply to the tokens doing the attending. At this point, each vector is enriched with the context of its preceding tokens.
+    * In GPT-2, when you multiply by the attention scores shape(8, 12, 1024, 1024) with V (8, 12, 1024, 64), you get a resulting shape of (8, 12, 1024, 64).
+* You do this for all heads, then **concatenate** the outputs into one final vector. 
+    * In GPT-2, you swap the dimensions before passing to the next layer (8, 1024, 12, 64), then concatenate each head's output to reconstruct the original dimension size (8, 1024, 768). Phew!
+* Pass the output vector through one final layer where you multiply by **Wo**, the **Output Projection Layer**. Ths final matrix multiply "mixes" the info in from all parallel head runs.
+    * In GPT-2, the output vector is shape (8, 1024, 768) and you multiply by Wo (768, 768) to get a final output vector of shape (8, 1024, 768).
+* Finally, add the output of this last step to the original embedding vector.
+    * The tensor exits attention in the exact shape it entered (8, 1024, 768).
 * Now you have a new embedding vector with context baked in, this can now flow through the MLP/FFN layer.
 
 ## Multi-Layer Perceptron (MLP)
