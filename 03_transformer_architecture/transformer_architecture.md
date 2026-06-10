@@ -58,7 +58,7 @@ Now, let's go through the step-by-step of the attention layer calculations and i
     * The tensor exits attention in the exact shape it entered [8, 1024, 768].
 * Now you have a new embedding vector with context baked in, this can now flow through the MLP/FFN layer.
 
-## Multi-Layer Perceptron (MLP)
+## Multi-Layer Perceptron (MLP) Layer
 The contextualized embedding vectors enter the multi-layer perception layer to process and synthesize the information contained in each token. Where attention was about tokens communicating with each other, in the MLP layer, you process each token "privately" to further refine its meaning.
 
 **Step-by-step of MLP:**
