@@ -98,13 +98,13 @@ Now you have your token sequence + one new token. This is done all at once for e
 ## Some Key Transformer Takeaways
 All of the matrix operations described in the transformer are done in parallel, for the whole input query. Every batch, every sequence, and every token is being processed all at once. This is why the GPUs are so important (and expensive), sinceg they enable this parallel processing.
 
-* Context Window and Compute Bottlenecks
+* **Context Window and Compute Bottlenecks**
     * As we discussed above, the attention mechanism runtime is bound by  $\mathcal{O}(T^2)$, where T is the token sequence length. Doubling a context window from T to 2T quadruples the size of the attention scores matrix and subsequent computations. So the attention layer tends to be the most computationally expensive layer in the transformer.
     * This quadratic scaling makes it very challenging to train and deploy models with extremely long context windows, as the computational requirements grow prohibitively large.
     * The maximum sequence length, T, is typically set early in the architecture by the Positional Encoding matrix. Changing this limit requires architectural changes and retraining so it's critical to consider carefully upfront in design. This maximum context window size is often constrained by the amount of available memory on the accelerator hardware (GPUs/TPUs).
     * A KV cache is used to store the key and value vectors from previous time steps, reducing the need to recompute them for each new token. This is especially important for long context windows, as it can reduce the memory usage of the attention mechanism by up to 50%.
 
-* Latency and Parallelization Trade-offs
+* **Latency and Parallelization Trade-offs**
     * More layers = more depth and context, potentially better inference up to a point
         * But also more layers = slower inference
         * And also more layers = harder to train because more layers to back propagatethrough
