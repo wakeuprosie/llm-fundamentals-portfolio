@@ -96,12 +96,18 @@ From the output of the final MLP pass, you take the very **last embedding vector
 Now you have your token sequence + one new token. This is done all at once for every token sequence in your input tensor, or your query, but you throw away all intermediate predictions and only keep the very last one! This process is repeated over and over again, one token at a time, for however long you want the response to be. So every next token generated means another pass through the transformer.
 
 ## Some Key Transformer Takeaways
-All of the matrix operations described in the transformer are done in parallel, for the whole input query. Every batch, every sequence, and every token is being processed all at once. This is why the GPUs are so important (and expensive), since they enable this parallel processing.
+All of the matrix operations described in the transformer are done in parallel, for the whole input query. Every batch, every sequence, and every token is being processed all at once. This is why the GPUs are so important (and expensive), sinceg they enable this parallel processing.
 
-More layers = more depth and context, potentially better inference up to a point
-But also more layers = slower inference
-And also more layers = harder to train because more layers to back propagate through
-**Memory and compute costs scale linearly with the number of layers**
-Modern transformers like GPT-5 contain 120 layers, compared to older versions like GPT-2 which had only 12.
+* Context Window and Compute Bottlenecks
+    * As we discussed above, the attention mechanism runtime is bound by  $\mathcal{O}(T^2)$, where T is the token sequence length. Doubling a context window from T to 2T quadruples the size of the attention scores matrix and subsequent computations. So the attention layer tends to be the most computationally expensive layer in the transformer.
+    * This quadratic scaling makes it very challenging to train and deploy models with extremely long context windows, as the computational requirements grow prohibitively large.
+    * The maximum sequence length, T, is typically set early in the architecture by the Positional Encoding matrix. Changing this limit requires architectural changes and retraining so it's critical to consider carefully upfront in design. This maximum context window size is often constrained by the amount of available memory on the accelerator hardware (GPUs/TPUs).
+    * A KV cache is used to store the key and value vectors from previous time steps, reducing the need to recompute them for each new token. This is especially important for long context windows, as it can reduce the memory usage of the attention mechanism by up to 50%.
 
-Lately the trend in optimizing LLMs is to build wider models, not just deeper - so more channels per token (the C value in B,T,C). This is because wider models vs deeper models, means more calculations can happen in parallel and reduce inference latency. There is research which shows that stacking layers past a certain point has diminishing returns. Most modern models like GPT-4 and from Gemini are also moving towards a **"Mixture-of-Experts" (MOE)** architecture, where each MLP layer is split into multiple smaller expert layers sitting side-by-side, and a routing algorithm sends tokens to only prioritized 1-2 MLP layers.
+* Latency and Parallelization Trade-offs
+    * More layers = more depth and context, potentially better inference up to a point
+        * But also more layers = slower inference
+        * And also more layers = harder to train because more layers to back propagatethrough
+        * **Memory and compute costs scale linearly with the number of layers**
+        * Modern transformers like GPT-5 contain 120 layers, compared to older versions like GPT-2 which had only 12.
+    * Lately the trend in optimizing LLMs is to build **wider models**, not just deeper - so more channels per token (the C value in B,T,C). This is because wider models vs deeper models, means more calculations can happen in parallel and reduce inference latency. There is research which shows that stacking layers past a certain point has diminishing returns. Most modern models like GPT-4 and from Gemini are also moving towards a **"Mixture-of-Experts" (MOE)** architecture, where each MLP layer is split into multiple smaller expert layers sitting side-by-side, and a routing algorithm sends tokens to only prioritized 1-2 MLP layers.
