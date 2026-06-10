@@ -86,7 +86,7 @@ Similar to seen in the attention layer, each FFN layer address different informa
 
 Once the tensor shape completes going through all layers of attention and MLP, it finally moves to **inference**, aka generating the next token.
 
-## Inference - Next Token Generation
+## Inference: Next Token Generation
 From the output of the final MLP pass, you take the very **last embedding vector** of the last token in your sequence, and use this to do inference.
 
 * You transform the embedding vector into an array of scores by dot product with yet another weighted matrix - this represents the scores for each possible next token. 
