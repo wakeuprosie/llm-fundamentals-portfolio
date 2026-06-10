@@ -25,7 +25,7 @@ There are **multiple attention layers** in a transformer. In each layer you buil
 Second, each attention layer contains **multiple ‘heads’**. Each head contains weights that look for different types of relationships between tokens.
 * For ex in the sequence "The cat sat" (let's assume each word is a token for ease of understanding) head A may focus on syntatic grammar relationships like linking "The" to "cat" in the sequence, head B focuses on resolving pronouns (does "it" refer to "cat"?), and head C may pay attention to punctuations or end-of-sentence tokens to understand structural flow. 
 
-Third, **B,T,C** are the key parameters of the attention layer. These parameters determine how the model processes your input query. Essentially, the query enters the attention layer as a tensor of shape (B,T,C).
+Third, **B,T,C** are the key parameters of the attention layer. These parameters determine how the model processes your input query. Essentially, the query enters the attention layer as a tensor of shape [B,T,C].
 * B represents batches - how many token sequences you'll process in parallel.
 * T represents token sequence size - how long is each sequence you'll analyze.
 * C represents channels - each channel represents some info about the token.
@@ -36,63 +36,72 @@ Now, let's go through the step-by-step of the attention layer calculations and i
 **Step-by-Step of Attention:**
 
 * First, you have your B,T,C input shape established. Then for every token in each T, you look up its **embedding vector**, **E**, from the static embedding table. Remember, at this point the vector has no context baked in.
-    * In the example of GPT-2 small, the input tensor shape is [B, T, 768] where T <= 1024 and each embedding vector is size 1 x 768. Let's assume the input tensor is (8, 1024, 768).
+    * In the example of GPT-2 small, the input tensor shape is [B, T, 768] where T <= 1024 and each embedding vector is size [1, 768]. Let's assume the input tensor is [8, 1024, 768].
 * Apply **Layer Normalization** to all Es. You do this because the embedding vector can vary wildly in size as you go through the transformer layers, so you want to reset the scale to keep the signal strength stable through each layer.
 * For each token in T, matrix multiply E with **Wq**, **Wk**, and **Wv** matrixes to get each token's **Q**, **K**, and **V** vectors. All three W matrixes are learned through backpropagation and help determine what information is important to each token. Q represents what information each token should pay attention to, K represents what information each token contains, and V contains what info to pass along. Each vector is then partitioned into **h** separate heads and reshaped to dhead size for the next step.
     * Each head has its own set of learned Wq, Wk, Wv matrixes which are weighted and initialized differently during training.
-    * In GPT-2, Wq, Wk, Wv are size 768 x 768. Each Q, K, and V vector is size 1 x 768. All tokens in a sequence are processed in parallel, so the Q, K , V vectors are actually all concatenated in one larger tensor of shape T x 768. So the concatenated vectors of Q, K, V each are size (8, 1024, 768). After partition, each head vector is reshaped into a 64 x 1 vector. Size 64 comes from total dimension / number of heads (768 / 12). The resulting Q, K, V shape is (8, 1024, 12, 64).
+    * In GPT-2, Wq, Wk, Wv are size 768 x 768. Each Q, K, and V vector is size [1, 768]. All tokens in a sequence are processed in parallel, so the Q, K , V vectors are actually all concatenated in one larger tensor of shape T x 768. So the concatenated vectors of Q, K, V each are size [8, 1024, 768]. After partition, each head vector is reshaped into a 64 x 1 vector. Size 64 comes from total dimension / number of heads (768 / 12). The resulting Q, K, V shape is [8, 1024, 12, 64].
     * Why partition? To allow parallel computing - you reshape into smaller vectors that can process in parallel, and each learns different aspects of token relationships, all at the same time. If each head processed the full 768 dimensions, you would 12x the attention layer size and memory usage.
     * Note that K and V vectors get cached in the GPU RAM (**KV Cache**) as you don't need to recalculate K and V for prior tokens every time. This saves compute and memory. KV cache grows linearly with growth in T.
 * In each head, you **dot product** Q and K matrices to calculate the **attention pattern**. The output is a T x T matrix of floating point numbers that each represent a score of how closely related each token pair in the sequence is (T = token sequence as a reminder!). Afterwards, you mask out the upper triangle of the resulting matrix - this ensures you only attend to preceding tokens, you don't want to attend to tokens that came after since you're trying to learn how to predict that.
-    * Continuing with the GPT-2 example, the resulting attention pattern shape is (8, 12, 1024, 1024). 8 batches of 12 heads, each head with a T x T attention matrix.
+    * Continuing with the GPT-2 example, the resulting attention pattern shape is [8, 12, 1024, 1024]. 8 batches of 12 heads, each head with a T x T attention matrix.
     * It's important to note that masking is required for a Causal Decoder (like GPT-2), but not for Encoder-Decoder models. Some models require tokens to look at the entire sequence, tokens coming before and after; a common use case is classifier models.
     * It's also important to note that the context window is a bottleneck in LLMs and can be explained in this step. If you double the context window of your model from T to 2T, the attention scores matrix actually quadruples - so compute and memory is scales quadratically and makes this very expensive. Attention's runtime is bound by $\mathcal{O}(T^2)$. For LLM use caes that require massive context, the attention mechanism is the primary bottleneck.
 * Each score in the attention matrix is scaled down by dividing by the square root of the dimension size, and then you apply **softmax** to get your final **scores matrix**. The softmax step ensures the scores of each row sum to 1, and are in the range 0 to 1. Remember, each row represents a single token and the attention it should pay to all tokens that came before it.
 * Then, matrix multiply the scores matrix with the **V vectors** of each token you're attending to, this gives you a vector of weighted changes to apply to the tokens doing the attending. At this point, each vector is enriched with the context of its preceding tokens.
-    * In GPT-2, when you multiply by the attention scores shape(8, 12, 1024, 1024) with V (8, 12, 1024, 64), you get a resulting shape of (8, 12, 1024, 64).
+    * In GPT-2, when you multiply by the attention scores shape [8, 12, 1024, 1024] with V [8, 12, 1024, 64], you get a resulting shape of [8, 12, 1024, 64].
 * You do this for all heads, then **concatenate** the outputs into one final vector. 
-    * In GPT-2, you swap the dimensions before passing to the next layer (8, 1024, 12, 64), then concatenate each head's output to reconstruct the original dimension size (8, 1024, 768). Phew!
+    * In GPT-2, you swap the dimensions before passing to the next layer [8, 1024, 12, 64], then concatenate each head's output to reconstruct the original dimension size [8, 1024, 768]. Phew!
 * Pass the output vector through one final layer where you multiply by **Wo**, the **Output Projection Layer**. Ths final matrix multiply "mixes" the info in from all parallel head runs.
-    * In GPT-2, the output vector is shape (8, 1024, 768) and you multiply by Wo (768, 768) to get a final output vector of shape (8, 1024, 768).
+    * In GPT-2, the output vector is shape [8, 1024, 768] and you multiply by Wo [768, 768] to get a final output vector of shape [8, 1024, 768].
 * Finally, add the output of this last step to the original embedding vector.
-    * The tensor exits attention in the exact shape it entered (8, 1024, 768).
+    * The tensor exits attention in the exact shape it entered [8, 1024, 768].
 * Now you have a new embedding vector with context baked in, this can now flow through the MLP/FFN layer.
 
 ## Multi-Layer Perceptron (MLP)
-The multi-layer perception (MLP) layer takes in the contextualized embedding vector and adds in the relevant knowledge/info. 
+The contextualized embedding vectors enter the multi-layer perception layer to process and synthesize the information contained in each token. Where attention was about tokens communicating with each other, in the MLP layer, you process each token "privately" to further refine its meaning.
 
-Step-by-step:
-* Matrix multiply the embedding vector with yet another, learned weighted matrix. In GPT-2, the dimensions are (768, 3072) - so the vector is getting larger at this step. Each row of this weighted matrix contains questions about the token - like ‘are you a noun’? 'are you related to a European city?'.
-* The output is an array of numbers ranging from negative to positive.
-* Add bias. This is a simple addition and it dictates how much you want to adjust the embedding vector of your token according to those numbers, it's like adjusting the intensity of the output from the matrix multiply step.
-* Run through Relu activation function. Tactically, this removes all negative numbers. In concept, what you're doing is creating a threshold for applying the calculated changes - basically only the large changes get added here.
-* Then size the output back down to embedding - size 768.
-* Add this output to the embedding vector. 
+**Step-by-step of MLP:**
+* Matrix multiply the embedding vector, or **residual stream vector** with (yet another!) learned weighted matrix, W1. This expands the canvas of the embedding vector into a higher dimension, typically by 4x to 8x in size. With smaller dimensions, concepts can be crowded or entagled, so by expanding the vector you create a massive space to better isolate specific features and nuances about token meaning. The output matrixes contain negative to positive numbers. Positive numbers mean the token is highly related to a feature, zero or negative means the feature is absent. 
+    * In GPT-2, the input tensor of size [8, 1024, 768] is multiplied by W1 of size [768, 3072] to get an output vector of size [8, 1024, 3072]. The third dimension goes from 748 --> 3072 (4x). 
+    * Conceptually you can think of W1 as a dictionary of semantic keys or a feature detection bank. Each row of W1 contains features of the tokens such as, "Is this token a noun?" and "Are you related to a European city?" etc. 
+* Add in **bias**, **b**, to this output via **bias broadcasting**. The operation is a simple vector addition. This step shifts the baseline and dictates how much you want to adjust the token embedding vectors according to output of the matrix multiplication - i.e. how strongly you want to emphasize certain features. Conceptually, the bias represents a model's built-in assumptions about features.
+    * In GPT-2, the bias vector is [1 x 3072]. After adding the bias vector, the tensor shape remains [8, 1024, 3072].
+    * The bias step decouples feature detection from the raw size of the inptu data. Without this, feature activation would be purely proportional to the input vector. If an input vector starts with small values, it would never be able to trigger important features without this step.
+    * In practice, the vast majority of values in b are highly negative. This ensures the model applies features to tokens only when highly relevant.
+* The residual stream vector then goes through a **non-linear activation function**. Operationally, this step removes all negative numbers in the output. Here you're enforcing a threshold for applying the calculated changes in MLP - basically it acts like a filter where only the most relevant changes get added to the tokens.
+    * In GPT-2, this is **GeLU**, which is similar to **ReLU** but with smoother curves. 
+* Matrix multiply the output with the **down-projection matrix**, **W2**, which projects it back down to the original embedding size.
+    * In GPT-2, the output vector from the previous step is shape [8, 1024, 3072] and you multiply by W2 of size [3072, 768] to get a final output vector of size [8, 1024, 768]. The third dimension goes from 3072 --> 768 (1/4x).
+* The final output, also called **Residual Update**, is added back to the original input that entered the MLP layer.
+    * You end with the same shape input, but now you have token embedding enriched with new semantic understanding.
 
-Your output is an emebdding vector that represents a token with context and info baked in. This is after 1 pass of attn and MLP.
+## Repeat attention and MLP!
+Up to here we discussed one pass of attention and the MLP layer each. Typically you repeat these steps over several layers in a transformer. This where the name ‘deep’ learning comes from. 
 
-You repeat this process over how many ever layers your transformer has. These layers are where the name ‘deep’ learning comes from. 
+Similar to seen in the attention layer, each FFN layer address different informational aspects of the tokens. 
+* Early MLP layers may shape more surface level attributes of the tokens
+* Middle layers contain most of the factual and semantic knowledge
+* Late layers refine the representation of tokens towards the final next token prediction
 
-Similarly to each attention layer, each FFN layer address different informational aspects of the tokens. Early mlp layers may shape more surface level attributes of the tokens, middle layers contain most of the factual and sematic knowledge, and late layers refine the representation of tokens towards the final next token prediction.
-
-We discussed typically there are multiple rounds of passing through attention and MLP/FFN layers. after you finish all the rounds of attention and FFN, you can move to inference - aka generating the next token. 
+Once the tensor shape completes going through all layers of attention and MLP, it finally moves to **inference**, aka generating the next token.
 
 ## Inference - Next Token Generation
-You do this using the output of the final MLP pass. Then you take the very LAST embedding vector of your sequence, and use just this to do inference.
+From the output of the final MLP pass, you take the very **last embedding vector** of the last token in your sequence, and use this to do inference.
 
-You transform the embedding vector into an array of scores by dot product with yet another weighted matrix - this represents the scores for each possible next token. 
-Then you run this through softmax to turn this into distributed probabilities.
-Then you generate the token with the highest probability.
+* You transform the embedding vector into an array of scores by dot product with yet another weighted matrix - this represents the scores for each possible next token. 
+* Then you run this through softmax to turn this into distributed probabilities.
+* Then you generate the token with the highest probability.
 
-Now you have your token sequence + one new token. 
+Now you have your token sequence + one new token. This is done all at once for every token sequence in your input tensor, or your query, but you throw away all intermediate predictions and only keep the very last one! This process is repeated over and over again, one token at a time, for however long you want the response to be. So every next token generated means another pass through the transformer.
 
-## Key Transformer Takeaways
-All of this happens in parallel, for the whole input query. Every batch, every sequence, and every token is being processed all at once, that’s why the GPUs are so important - they enable this parallel processing.
-
-Modern transformers like GPT-5 contain 120 layers, compared to older versions like GPT-2 which had only 12.
-Lately the trend is moving towards wider models, not just deeper - so bigger channels per token (the C value in B,T,C).
+## Some Key Transformer Takeaways
+All of the matrix operations described in the transformer are done in parallel, for the whole input query. Every batch, every sequence, and every token is being processed all at once. This is why the GPUs are so important, they enable this parallel processing.
 
 More layers = more depth and context, potentially better inference up to a point
 But also more layers = slower inference
 And also more layers = harder to train because more layers to back propagate through
-Memory and compute costs scale linearly with the number of layers!
+**Memory and compute costs scale linearly with the number of layers**
+Modern transformers like GPT-5 contain 120 layers, compared to older versions like GPT-2 which had only 12.
+
+Lately the trend in optimizing LLMs is to build wider models, not just deeper - so more channels per token (the C value in B,T,C). This is because wider models vs deeper models, means more calculations can happen in parallel and reduce inference latency. There is research which shows that stacking layers past a certain point has diminishing returns. Most modern models like GPT-4 and from Gemini are also moving towards a "Mixture-of-Experts" (MOE) architecture, where each MLP layer is split into multiple smaller expert layers sitting side-by-side, and a routing algorithm sends tokens to only prioritized 1-2 MLP layers.
