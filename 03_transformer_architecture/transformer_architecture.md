@@ -76,7 +76,7 @@ The contextualized embedding vectors enter the multi-layer perception layer to p
 * The final output, also called **Residual Update**, is added back to the original input that entered the MLP layer.
     * You end with the same shape input, but now you have token embedding enriched with new semantic understanding.
 
-## Repeat attention and MLP!
+## Repeat Attention and MLP! Aka Deep Learning
 Up to here we discussed one pass of attention and the MLP layer each. Typically you repeat these steps over several layers in a transformer. This where the name ‘deep’ learning comes from. 
 
 Similar to seen in the attention layer, each FFN layer address different informational aspects of the tokens. 
