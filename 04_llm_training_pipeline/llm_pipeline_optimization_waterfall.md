@@ -12,9 +12,9 @@
 | **7. Gradient Accumulation** | `loss = loss / accum_steps; loss.backward()` | Varies (Accumulating) | ~176,000 | ~10.8x** |
 | **8. Multiple GPUs (DDP)** | `DistributedDataParallel(model)` (8x A100s). | Varies | ~1,400,000 | ~87.5x |
 
-*Pre-tokenization does not increase maximum GPU throughput, but it eliminates the CPU data-loading bottleneck, preventing token starvation and ensuring the GPU stays at 100% utilization.*
+\* Pre-tokenization does not increase maximum GPU throughput, but it eliminates the CPU data-loading bottleneck, ensuring the GPU stays at 100% utilization.*/
 
-*Gradient accumulation does not change tokens per second, but enables the mathematically necessary 0.5M token batch size without exceeding a single GPU's VRAM limits.*
+\*\* Gradient accumulation does not change tokens per second, but enables the mathematically necessary 0.5M token batch size without exceeding a single GPU's VRAM limits.*/
 
 *(Note: These metrics assume a batch size of 16 and a sequence length of 1024, processing a total of 16,384 tokens per step.)*
 
