@@ -1,13 +1,20 @@
 # The GPT-2 Hardware Optimization Waterfall
 
-| Optimization Step | Code Implementation | Runtime / Step | Tokens / Sec | Cumulative Speedup |
+| Optimization Step | Code / Method | Runtime / Step | Tokens / Sec | Cumulative Speedup |
 | :--- | :--- | :--- | :--- | :--- |
 | **0. Baseline** | Naive PyTorch implementation (float32). | ~1000 ms | ~16,000 | 1.0x |
-| **1. TensorFloat-32 (TF32)** | `torch.set_float32_matmul_precision('high')` | ~330 ms | ~49,000 | **~3.0x** |
-| **2. Mixed Precision (BF16)** | `with torch.autocast(..., dtype=torch.bfloat16):` | ~300 ms | ~54,000 | **~3.3x** |
-| **3. Pre-compilation** | `torch.compile(model)` | ~130 ms | ~126,000 | **~7.7x** |
-| **4. FlashAttention** | `F.scaled_dot_product_attention(...)` | ~96 ms | ~170,000 | **~10.4x** |
-| **5. Vocabulary Padding** | Padding `vocab_size` from 50,257 to 50,304. | ~93 ms | ~176,000 | **~10.8x** |
+| **1. TensorFloat-32 (TF32)** | `torch.set_float32_matmul_precision('high')` | ~330 ms | ~49,000 | ~3.0x |
+| **2. Mixed Precision (BF16)** | `with torch.autocast(..., dtype=torch.bfloat16):` | ~300 ms | ~54,000 | ~3.3x |
+| **3. Pre-compilation** | `torch.compile(model)` | ~130 ms | ~126,000 | ~7.7x |
+| **4. FlashAttention** | `F.scaled_dot_product_attention(...)` | ~96 ms | ~170,000 | ~10.4x |
+| **5. Vocabulary Padding** | Padding `vocab_size` from 50,257 to 50,304. | ~93 ms | ~176,000 | ~10.8x |
+| **6. Pre-tokenization** | Pre-saving `uint16` tokens to disk. | ~93 ms | ~176,000 | ~10.8x* |
+| **7. Gradient Accumulation** | `loss = loss / accum_steps; loss.backward()` | Varies (Accumulating) | ~176,000 | ~10.8x** |
+| **8. Multiple GPUs (DDP)** | `DistributedDataParallel(model)` (8x A100s). | Varies | ~1,400,000 | ~87.5x |
+
+*Pre-tokenization does not increase maximum GPU throughput, but it eliminates the CPU data-loading bottleneck, preventing token starvation and ensuring the GPU stays at 100% utilization.*
+
+*Gradient accumulation does not change tokens per second, but enables the mathematically necessary 0.5M token batch size without exceeding a single GPU's VRAM limits.*
 
 *(Note: These metrics assume a batch size of 16 and a sequence length of 1024, processing a total of 16,384 tokens per step.)*
 
