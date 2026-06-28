@@ -4,7 +4,7 @@ This is a portfolio demonstrating fundamentals knowledge of LLM Infra and Traini
 
 Scaling Large Language Models requires an understanding of distributed systems, hardware economics, and scaling laws. While application-layer AI often focuses on model performance metrics like latency and prompt adherence, Core AI infrastructure requires systems-level approaches to unblocking compute bottlenecks.
 
-This repository serves as a study of LLM infrastructure—built from first principles. Rather than relying on high-level abstractions, these artifacts deconstruct the pipeline from token compression algorithms to multi-node GPU synchronization.
+This repository serves as a study of LLM infrastructure built from first principles. Rather than relying on high-level abstractions, these artifacts deconstruct the pipeline from token compression algorithms to multi-node GPU synchronization.
 
 ## Portfolio Artifacts
 
