@@ -20,6 +20,10 @@ This is a notebook that demonstrates how a basic tokenizer works for encoding an
 
 This notebook outlines the trasnformer architecture and attention mechainism that powers modern LLMs.
 
-### 04_llm_training_pipeline
+### 04_llm_training_architecture
 
-This notebook outlines the key components and considerations for training an LLM, with a focus on optimization and efficiency. Included is a from-scratch implementation of a small scale LLM using TensorFlow, and iterations to increase its scale to a GPT-2 model, including data parallelism and multi-GPU usage.
+This notebook outlines the key components and considerations for training an LLM, with a focus on optimization and efficiency.
+
+### 05_llm_implementations
+
+This notebook contains two from-scratch implementations of a small scale LLM pipeline, and then a scaled LLM pipeline, using TensorFlow, with data parallelism and pipeline optimizations.
