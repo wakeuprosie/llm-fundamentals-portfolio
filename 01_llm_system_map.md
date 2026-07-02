@@ -1,5 +1,5 @@
 # LLM System Map
-This document aims to outline the high-level architecture of an LLM system, based on Andrej Karpathy's 2025 lecture: [Deep Dive into LLMs like ChatGPT](https://www.youtube.com/watch?v=7xTGNNLPyMI&t=9446s).
+This document outlines the high-level architecture of an LLM.
 
 **In summary, the high-level LLM system is structured like this:**
 
